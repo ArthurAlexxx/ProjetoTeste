@@ -120,7 +120,12 @@ export function MediaUploader() {
       },
       (error) => {
         console.error("Upload error:", error);
-        const errorMsg = `Upload failed: ${error.message}`;
+        let errorMsg = `Upload failed: ${error.message}`;
+
+        if (error.code === 'storage/unauthorized') {
+          errorMsg = "Upload failed: You do not have permission to upload files. Please check your Firebase Storage security rules."
+        }
+        
         setError(errorMsg);
         setStatus("error");
         toast({
