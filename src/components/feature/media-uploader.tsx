@@ -95,6 +95,7 @@ export function MediaUploader() {
     
     if (!process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) {
       const errorMsg = "Firebase Storage is not configured. Please check your .env.local file.";
+      console.error(errorMsg);
       setError(errorMsg);
       setStatus("error");
       toast({
@@ -119,11 +120,32 @@ export function MediaUploader() {
         setProgress(progress);
       },
       (error) => {
-        console.error("Upload error:", error);
+        console.error("Upload error:", error.code, error.message);
         let errorMsg = `Upload failed: ${error.message}`;
 
-        if (error.code === 'storage/unauthorized') {
-          errorMsg = "Upload failed: You do not have permission to upload files. Please check your Firebase Storage security rules."
+        switch (error.code) {
+          case 'storage/unauthorized':
+            errorMsg = "Upload failed: You do not have permission to upload files. Please check your Firebase Storage security rules.";
+            console.error("Security Rules error: User does not have permission for this action.");
+            break;
+          case 'storage/canceled':
+            errorMsg = "Upload was canceled.";
+            console.error("Upload canceled by the user.");
+            // Don't show a toast for this, as it's an intentional action.
+            setStatus("idle");
+            return;
+          case 'storage/quota-exceeded':
+            errorMsg = "Upload failed: Storage quota exceeded. Please upgrade your plan or free up space.";
+            console.error("Storage quota exceeded for this Firebase project.");
+            break;
+          case 'storage/unauthenticated':
+            errorMsg = "Upload failed: User is not authenticated. Please log in.";
+            console.error("User is not authenticated. Security rules may require authentication.");
+            break;
+          case 'storage/unknown':
+            errorMsg = "An unknown error occurred during upload.";
+            console.error("An unknown Firebase Storage error occurred.");
+            break;
         }
         
         setError(errorMsg);
