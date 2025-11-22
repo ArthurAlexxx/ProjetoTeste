@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  Sparkles,
+  Clapperboard
 } from "lucide-react";
 import {
   Card,
@@ -21,9 +23,12 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { analyzeVideo } from "@/ai/flows/analyze-video-flow";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 type UploadStatus = "idle" | "uploading" | "success" | "error";
+type AnalysisStatus = "idle" | "loading" | "success" | "error";
 
 export function MediaUploader() {
   const [file, setFile] = useState<File | null>(null);
@@ -34,6 +39,10 @@ export function MediaUploader() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>("idle");
+  const [analysisResult, setAnalysisResult] = useState<string>("");
+  const [analysisError, setAnalysisError] = useState<string>("");
 
   const handleFileSelect = (selectedFile: File | null) => {
     if (selectedFile) {
@@ -80,6 +89,9 @@ export function MediaUploader() {
     setProgress(0);
     setDownloadURL(null);
     setError(null);
+    setAnalysisStatus("idle");
+    setAnalysisResult("");
+    setAnalysisError("");
   };
 
   const handleReset = () => {
@@ -87,9 +99,53 @@ export function MediaUploader() {
     resetState();
   };
 
+  const handleAnalyzeVideo = async () => {
+    if (!file || !file.type.startsWith('video/')) {
+        setAnalysisError("Please upload a valid video file to analyze.");
+        setAnalysisStatus("error");
+        return;
+    }
+
+    setAnalysisStatus("loading");
+    setAnalysisError("");
+    setAnalysisResult("");
+
+    try {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = async () => {
+            const base64data = reader.result as string;
+            
+            const result = await analyzeVideo({ videoDataUri: base64data });
+
+            if (result && result.analysis) {
+                setAnalysisResult(result.analysis);
+                setAnalysisStatus("success");
+            } else {
+                throw new Error("Analysis failed to produce a result.");
+            }
+        };
+        reader.onerror = () => {
+            throw new Error("Failed to read the video file.");
+        }
+    } catch (e: any) {
+        console.error("Analysis error:", e);
+        const errorMsg = e.message || "An unknown error occurred during analysis.";
+        setAnalysisError(errorMsg);
+        setAnalysisStatus("error");
+        toast({
+            title: "Analysis Failed",
+            description: errorMsg,
+            variant: "destructive",
+        });
+    }
+  };
+
+
   const handleUpload = useCallback(() => {
     if (!file) {
       setError("Please select a file first.");
+      console.error("Upload error: No file selected.");
       return;
     }
     
@@ -120,7 +176,7 @@ export function MediaUploader() {
         setProgress(progress);
       },
       (error) => {
-        console.error("Upload error:", error.code, error.message);
+        console.error("Upload error:", error.code, error.message, error);
         let errorMsg = `Upload failed: ${error.message}`;
 
         switch (error.code) {
@@ -131,7 +187,6 @@ export function MediaUploader() {
           case 'storage/canceled':
             errorMsg = "Upload was canceled.";
             console.error("Upload canceled by the user.");
-            // Don't show a toast for this, as it's an intentional action.
             setStatus("idle");
             return;
           case 'storage/quota-exceeded':
@@ -143,8 +198,9 @@ export function MediaUploader() {
             console.error("User is not authenticated. Security rules may require authentication.");
             break;
           case 'storage/unknown':
-            errorMsg = "An unknown error occurred during upload.";
-            console.error("An unknown Firebase Storage error occurred.");
+          default:
+            errorMsg = "An unknown error occurred during upload. Check the console for details.";
+            console.error("An unknown Firebase Storage error occurred:", error);
             break;
         }
         
@@ -190,15 +246,51 @@ export function MediaUploader() {
           </div>
         );
       case "success":
+        const isVideo = file?.type.startsWith('video/');
         return (
           <div className="text-center">
             <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
             <p className="mt-4 font-semibold">Upload Complete!</p>
             <p className="mt-2 text-sm text-muted-foreground">Your file is now available.</p>
-            <div className="mt-4 flex flex-col items-center gap-2">
+            
+            <div className="mt-6 flex flex-col items-center gap-4">
               <a href={downloadURL!} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm break-all">
                 View File
               </a>
+
+              {isVideo && (
+                <div className="w-full space-y-4">
+                  <Button onClick={handleAnalyzeVideo} disabled={analysisStatus === 'loading'}>
+                    {analysisStatus === 'loading' ? (
+                      <Loader2 className="mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2" />
+                    )}
+                    Analisar Vídeo
+                  </Button>
+
+                  {analysisStatus === 'success' && analysisResult && (
+                    <Alert>
+                      <Sparkles className="h-4 w-4" />
+                      <AlertTitle>Análise do Vídeo</AlertTitle>
+                      <AlertDescription>
+                        {analysisResult}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {analysisStatus === 'error' && analysisError && (
+                     <Alert variant="destructive">
+                      <XCircle className="h-4 w-4" />
+                      <AlertTitle>Erro na Análise</AlertTitle>
+                      <AlertDescription>
+                        {analysisError}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+
               <Button onClick={handleReset} variant="outline" className="mt-2">
                 Upload Another File
               </Button>
@@ -211,15 +303,16 @@ export function MediaUploader() {
             <XCircle className="mx-auto h-12 w-12 text-destructive" />
             <p className="mt-4 font-semibold">Upload Failed</p>
             <p className="mt-2 text-sm text-destructive">{error}</p>
-            <Button onClick={handleUpload} variant="secondary" className="mt-4">
+            <Button onClick={handleReset} variant="secondary" className="mt-4">
               Try Again
             </Button>
           </div>
         );
       default: // idle
+        const fileIcon = file?.type.startsWith('video/') ? <Clapperboard className="mx-auto h-12 w-12 text-gray-400" /> : <FileIcon className="mx-auto h-12 w-12 text-gray-400" />;
         return file ? (
           <div className="space-y-4 text-center">
-            <FileIcon className="mx-auto h-12 w-12 text-gray-400" />
+            {fileIcon}
             <p className="font-medium">{file.name}</p>
             <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
             <div className="flex justify-center gap-4">
@@ -267,7 +360,7 @@ export function MediaUploader() {
       <CardHeader>
         <CardTitle className="text-2xl font-headline">Media Uploader</CardTitle>
         <CardDescription>
-          Upload your photos and videos to Firebase Storage.
+          Upload your photos and videos. The AI can analyze video content.
         </CardDescription>
       </CardHeader>
       <CardContent>{renderContent()}</CardContent>
