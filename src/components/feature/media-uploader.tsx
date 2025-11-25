@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useCallback, useRef, type ChangeEvent, type DragEvent } from "react";
+import { useState, useRef } from "react";
 import {
-  UploadCloud,
-  File as FileIcon,
-  CheckCircle2,
-  XCircle,
+  User,
+  Search,
   Loader2,
-  Sparkles,
-  Clapperboard
+  XCircle,
+  Users,
 } from "lucide-react";
 import {
   Card,
@@ -20,249 +18,138 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { analyzeVideo } from "@/ai/flows/analyze-video-flow";
+import { getInstagramFollowers } from "@/actions/get-instagram-followers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-
-type AnalysisStatus = "idle" | "loading" | "success" | "error";
+type Status = "idle" | "loading" | "success" | "error";
 
 export function MediaUploader() {
-  const [file, setFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [username, setUsername] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
+  const [result, setResult] = useState<{ followers: number } | null>(null);
+  const [error, setError] = useState<string>("");
   const { toast } = useToast();
 
-  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>("idle");
-  const [analysisResult, setAnalysisResult] = useState<string>("");
-  const [analysisError, setAnalysisError] = useState<string>("");
-
-  const handleFileSelect = (selectedFile: File | null) => {
-    if (selectedFile) {
-      setFile(selectedFile);
-      resetState();
-    }
-  };
-
-  const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-  
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileSelect(e.dataTransfer.files[0]);
-      e.dataTransfer.clearData();
-    }
-  };
-
-  const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFileSelect(e.target.files[0]);
-    }
-  };
-
-  const resetState = () => {
-    setAnalysisStatus("idle");
-    setAnalysisResult("");
-    setAnalysisError("");
-  };
-
-  const handleReset = () => {
-    setFile(null);
-    resetState();
-  };
-
-  const handleAnalyzeVideo = async () => {
-    if (!file || !file.type.startsWith('video/')) {
-        setAnalysisError("Por favor, selecione um arquivo de vídeo válido para analisar.");
-        setAnalysisStatus("error");
-        return;
-    }
-
-    setAnalysisStatus("loading");
-    setAnalysisError("");
-    setAnalysisResult("");
-
-    try {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onloadend = async () => {
-            const base64data = reader.result as string;
-            
-            const result = await analyzeVideo({ videoDataUri: base64data });
-
-            if (result && result.analysis) {
-                setAnalysisResult(result.analysis);
-                setAnalysisStatus("success");
-                 toast({
-                    title: "Análise Concluída",
-                    description: "A IA analisou o seu vídeo.",
-                });
-            } else {
-                throw new Error("A análise não produziu um resultado.");
-            }
-        };
-        reader.onerror = () => {
-            throw new Error("Falha ao ler o arquivo de vídeo.");
-        }
-    } catch (e: any) {
-        console.error("Erro na análise:", e);
-        const errorMsg = e.message || "Ocorreu um erro desconhecido durante a análise.";
-        setAnalysisError(errorMsg);
-        setAnalysisStatus("error");
-        toast({
-            title: "Falha na Análise",
-            description: errorMsg,
-            variant: "destructive",
-        });
-    }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const renderInitialOrSelected = () => {
-    if (!file) {
-      return (
-        <div
-          className={`flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 text-center transition-colors ${
-            isDragging ? "border-primary bg-primary/10" : "border-border"
-          }`}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-        >
-          <UploadCloud className="h-12 w-12 text-gray-400" />
-          <p className="mt-4 font-semibold">Arraste e solte seu arquivo aqui</p>
-          <p className="mt-1 text-sm text-muted-foreground">ou</p>
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-4"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Selecione o Arquivo
-          </Button>
-          <Input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            onChange={handleFileInputChange}
-            accept="image/*,video/*"
-          />
-        </div>
-      );
+  const handleSearch = async () => {
+    if (!username) {
+      setError("Por favor, insira um nome de usuário do Instagram.");
+      setStatus("error");
+      return;
     }
     
-    const isVideo = file?.type.startsWith('video/');
-    const fileIcon = isVideo ? <Clapperboard className="mx-auto h-12 w-12 text-gray-400" /> : <FileIcon className="mx-auto h-12 w-12 text-gray-400" />;
+    setStatus("loading");
+    setError("");
+    setResult(null);
 
-    return (
-      <div className="space-y-4 text-center">
-        {fileIcon}
-        <p className="font-medium">{file.name}</p>
-        <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
-        <div className="flex justify-center gap-4">
-          {isVideo ? (
-             <Button onClick={handleAnalyzeVideo} disabled={analysisStatus === 'loading'}>
-              {analysisStatus === 'loading' ? (
-                <Loader2 className="mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2" />
-              )}
-              Analisar Vídeo
+    try {
+      const response = await getInstagramFollowers(username.replace('@', ''));
+      if (response.success && response.data) {
+        setResult({ followers: response.data.followers });
+        setStatus("success");
+        toast({
+          title: "Sucesso!",
+          description: `O usuário @${username} tem ${response.data.followers.toLocaleString('pt-BR')} seguidores.`,
+        });
+      } else {
+        throw new Error(response.error || "Não foi possível encontrar os dados.");
+      }
+    } catch (e: any) {
+      console.error("Erro ao buscar seguidores:", e);
+      const errorMsg = e.message || "Ocorreu um erro desconhecido.";
+      setError(errorMsg);
+      setStatus("error");
+      toast({
+        title: "Falha na Busca",
+        description: errorMsg,
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleReset = () => {
+    setUsername("");
+    setStatus("idle");
+    setResult(null);
+    setError("");
+  };
+
+  const renderContent = () => {
+    switch (status) {
+      case "loading":
+        return (
+          <div className="text-center">
+            <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+            <p className="mt-4 text-sm font-medium">Buscando seguidores...</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Aguarde enquanto conectamos à API.
+            </p>
+          </div>
+        );
+      case "success":
+        return (
+          <div className="text-center space-y-4">
+            <Users className="mx-auto h-12 w-12 text-success" />
+            <Alert>
+              <Users className="h-4 w-4" />
+              <AlertTitle>Busca Concluída</AlertTitle>
+              <AlertDescription>
+                O usuário <strong>@{username}</strong> tem <br />
+                <span className="text-2xl font-bold">{result?.followers.toLocaleString('pt-BR')}</span>
+                <br /> seguidores.
+              </AlertDescription>
+            </Alert>
+            <Button onClick={handleReset} variant="outline">
+              Buscar Outro Usuário
             </Button>
-          ) : (
-            <p className="text-sm text-muted-foreground">A análise só está disponível para vídeos no momento.</p>
-          )}
-          <Button onClick={handleReset} variant="outline">
-            Cancelar
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  const renderAnalysis = () => {
-     switch(analysisStatus) {
-        case 'loading':
-            return (
-                <div className="text-center">
-                    <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-                    <p className="mt-4 text-sm font-medium">Analisando vídeo...</p>
-                    <p className="mt-1 text-xs text-muted-foreground">A IA está processando o conteúdo.</p>
-                </div>
-            )
-        case 'success':
-            return (
-                <div className="text-center space-y-4">
-                    <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
-                    <Alert>
-                      <Sparkles className="h-4 w-4" />
-                      <AlertTitle>Análise de Vídeo Concluída</AlertTitle>
-                      <AlertDescription>
-                        {analysisResult}
-                      </AlertDescription>
-                    </Alert>
-                    <Button onClick={handleReset} variant="outline">
-                        Analisar Outro Vídeo
-                    </Button>
-                </div>
-            )
-        case 'error':
-             return (
-                <div className="text-center space-y-4">
-                    <XCircle className="mx-auto h-12 w-12 text-destructive" />
-                     <Alert variant="destructive">
-                      <XCircle className="h-4 w-4" />
-                      <AlertTitle>Erro na Análise</AlertTitle>
-                      <AlertDescription>
-                        {analysisError}
-                      </AlertDescription>
-                    </Alert>
-                    <Button onClick={handleReset} variant="secondary">
-                        Tentar Novamente
-                    </Button>
-                </div>
-            )
-        default:
-          return null;
-     }
-  }
-
+          </div>
+        );
+      case "error":
+        return (
+          <div className="text-center space-y-4">
+            <XCircle className="mx-auto h-12 w-12 text-destructive" />
+            <Alert variant="destructive">
+              <XCircle className="h-4 w-4" />
+              <AlertTitle>Erro na Busca</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+            <Button onClick={handleReset} variant="secondary">
+              Tentar Novamente
+            </Button>
+          </div>
+        );
+      case "idle":
+      default:
+        return (
+          <div className="flex flex-col space-y-4">
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="@username"
+                className="pl-10"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+            <Button onClick={handleSearch} disabled={status === 'loading' || !username}>
+              <Search className="mr-2" />
+              Buscar Seguidores
+            </Button>
+          </div>
+        );
+    }
+  };
 
   return (
-    <Card className="w-full max-w-lg shadow-lg">
+    <Card className="w-full max-w-md shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline">Analisador de Mídia</CardTitle>
+        <CardTitle className="text-2xl font-headline">Buscador de Seguidores</CardTitle>
         <CardDescription>
-          Selecione um vídeo para que a IA analise seu conteúdo.
+          Insira um nome de usuário do Instagram para ver o número de seguidores.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        {analysisStatus === 'idle' ? renderInitialOrSelected() : renderAnalysis()}
-      </CardContent>
+      <CardContent>{renderContent()}</CardContent>
     </Card>
   );
 }
