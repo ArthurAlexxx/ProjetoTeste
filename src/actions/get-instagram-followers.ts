@@ -2,29 +2,37 @@
 
 import { z } from 'zod';
 
-// Define o schema esperado da resposta da API da RapidAPI.
+// Define o schema do usuário dentro da resposta da API
+const UserSchema = z.object({
+  follower_count: z.number(),
+  following_count: z.number(),
+  media_count: z.number(),
+  total_clips_count: z.number().optional().default(0), // Reels podem não existir
+  full_name: z.string(),
+  biography: z.string(),
+});
+
+// Define o schema da resposta completa da API da RapidAPI.
 const InstagramAPIResponseSchema = z.object({
   result: z.array(z.object({
-    user: z.object({
-      follower_count: z.number(),
-    }),
+    user: UserSchema,
   })),
 });
 
-// Extrai um tipo mais simples para o nosso uso
-const FollowersSchema = z.number();
+// Extrai um tipo mais simples para o nosso uso, que será o tipo de retorno
+export type InstagramData = z.infer<typeof UserSchema>;
 
 // Define a estrutura do nosso retorno padronizado
 type ActionResponse = {
   success: boolean;
-  data?: { followers: number };
+  data?: InstagramData;
   error?: string;
 };
 
 /**
- * Busca o número de seguidores de um usuário do Instagram usando uma API da RapidAPI.
+ * Busca os dados de um usuário do Instagram usando uma API da RapidAPI.
  * @param username O nome de usuário do Instagram para buscar.
- * @returns Um objeto contendo o status da operação e os dados do seguidor.
+ * @returns Um objeto contendo o status da operação e os dados do usuário.
  */
 export async function getInstagramFollowers(username: string): Promise<ActionResponse> {
   const apiKey = process.env.NEXT_PUBLIC_RAPIDAPI_KEY;
@@ -34,8 +42,7 @@ export async function getInstagramFollowers(username: string): Promise<ActionRes
     console.error("Variáveis de ambiente da RapidAPI não estão configuradas.");
     return { success: false, error: "O servidor não está configurado para se conectar à API. Fale com o administrador." };
   }
-
-  // A URL pode variar. Verifique a documentação da API na RapidAPI.
+  
   const url = `https://${apiHost}/api/instagram/userInfo`;
 
   const options = {
@@ -59,17 +66,17 @@ export async function getInstagramFollowers(username: string): Promise<ActionRes
       throw new Error(errorMessage);
     }
     
-    // Caminho para o número de seguidores baseado na resposta real da API.
-    const followers = result?.result?.[0]?.user?.follower_count;
+    // Valida a resposta da API com o Zod
+    const parsedResponse = InstagramAPIResponseSchema.safeParse(result);
 
-    const parsedFollowers = FollowersSchema.safeParse(followers);
-
-    if (!parsedFollowers.success) {
-      console.error("Não foi possível encontrar 'follower_count' na resposta da API ou o formato é inesperado:", result);
-      return { success: false, error: "A resposta da API não retornou o número de seguidores no formato esperado." };
+    if (!parsedResponse.success || parsedResponse.data.result.length === 0) {
+      console.error("Não foi possível encontrar os dados do usuário na resposta da API ou o formato é inesperado:", result);
+      return { success: false, error: "A resposta da API não retornou os dados do usuário no formato esperado." };
     }
 
-    return { success: true, data: { followers: parsedFollowers.data } };
+    const userData = parsedResponse.data.result[0].user;
+
+    return { success: true, data: userData };
 
   } catch (error: any) {
     console.error("Falha ao buscar dados da RapidAPI:", error);
