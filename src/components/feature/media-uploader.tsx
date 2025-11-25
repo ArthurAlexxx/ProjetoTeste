@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { User, Search, Loader2, XCircle, Users, Rss, GalleryHorizontal } from "lucide-react";
+import { User, Search, Loader2, XCircle, Users, Rss, GalleryHorizontal, Heart, MessageCircle } from "lucide-react";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -13,7 +14,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getInstagramFollowers, type InstagramData } from "@/actions/get-instagram-followers";
+import { getInstagramPosts, type InstagramPost } from "@/actions/get-instagram-posts";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import { Separator } from "@/components/ui/separator";
+
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -25,10 +36,50 @@ const StatCard = ({ icon, label, value }: { icon: React.ReactNode, label: string
     </div>
 );
 
+const PostCard = ({ post }: { post: InstagramPost }) => {
+  const mediaUrl = post.media_type === 2 ? post.video_url : post.image_url;
+
+  return (
+    <Card className="flex flex-col">
+      <CardContent className="p-0">
+        {mediaUrl ? (
+          post.media_type === 2 ? (
+            <video controls src={mediaUrl} className="w-full h-auto rounded-t-lg" />
+          ) : (
+            <Image
+              src={mediaUrl}
+              alt="Post media"
+              width={600}
+              height={600}
+              className="w-full h-auto object-cover rounded-t-lg"
+            />
+          )
+        ) : <div className="w-full h-64 bg-secondary rounded-t-lg flex items-center justify-center text-muted-foreground">Sem Mídia</div>}
+      </CardContent>
+      <div className="p-4 flex-grow flex flex-col">
+        <p className="text-xs text-muted-foreground flex-grow mb-4">{post.caption}</p>
+        <Separator className="my-2" />
+        <div className="flex items-center justify-around text-xs">
+          <div className="flex items-center gap-1">
+            <Heart className="w-4 h-4 text-primary" />
+            <span>{post.like_count.toLocaleString("pt-BR")}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <MessageCircle className="w-4 h-4 text-primary" />
+            <span>{post.comment_count.toLocaleString("pt-BR")}</span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+};
+
+
 export function MediaUploader() {
   const [username, setUsername] = useState("neymarjr");
   const [status, setStatus] = useState<Status>("idle");
-  const [result, setResult] = useState<InstagramData | null>(null);
+  const [profile, setProfile] = useState<InstagramData | null>(null);
+  const [posts, setPosts] = useState<InstagramPost[]>([]);
   const [error, setError] = useState<string>("");
   const { toast } = useToast();
 
@@ -41,25 +92,43 @@ export function MediaUploader() {
 
     setStatus("loading");
     setError("");
-    setResult(null);
+    setProfile(null);
+    setPosts([]);
 
     try {
-      // Remove o '@' se o usuário tiver digitado
       const cleanUsername = username.replace('@', '');
-      const response = await getInstagramFollowers(cleanUsername);
+      
+      // Fetch profile and posts in parallel
+      const [profileResponse, postsResponse] = await Promise.all([
+        getInstagramFollowers(cleanUsername),
+        getInstagramPosts(cleanUsername)
+      ]);
 
-      if (response.success && response.data) {
-        setResult(response.data);
-        setStatus("success");
-        toast({
-          title: "Sucesso!",
-          description: `Dados de @${cleanUsername} encontrados.`,
-        });
+      if (profileResponse.success && profileResponse.data) {
+        setProfile(profileResponse.data);
       } else {
         throw new Error(
-          response.error || "Não foi possível encontrar os dados."
+          profileResponse.error || "Não foi possível encontrar os dados do perfil."
         );
       }
+
+      if (postsResponse.success && postsResponse.data) {
+        setPosts(postsResponse.data);
+      } else {
+        // This is not a critical error, so we just toast a warning.
+        toast({
+          title: "Aviso",
+          description: postsResponse.error || "Não foi possível buscar os posts.",
+          variant: "default",
+        });
+      }
+      
+      setStatus("success");
+      toast({
+        title: "Sucesso!",
+        description: `Dados de @${cleanUsername} encontrados.`,
+      });
+
     } catch (e: any) {
       console.error("Erro ao buscar dados:", e);
       const errorMsg = e.message || "Ocorreu um erro desconhecido.";
@@ -75,7 +144,8 @@ export function MediaUploader() {
 
   const handleReset = () => {
     setStatus("idle");
-    setResult(null);
+    setProfile(null);
+    setPosts([]);
     setError("");
   };
 
@@ -93,20 +163,49 @@ export function MediaUploader() {
         );
       case "success":
         return (
-          <div className="text-center space-y-4">
-            <Alert>
-              <Users className="h-4 w-4" />
-              <AlertTitle>{result?.full_name}</AlertTitle>
-              <AlertDescription>
-                <p className="font-bold">@{username.replace('@','')}</p>
-                <p className="text-xs mt-1">{result?.biography}</p>
-              </AlertDescription>
-            </Alert>
-            <div className="grid grid-cols-3 gap-2 text-center">
-                <StatCard icon={<Users className="w-6 h-6 text-primary"/>} label="Seguidores" value={result?.follower_count ?? 0} />
-                <StatCard icon={<Rss className="w-6 h-6 text-primary"/>} label="Seguindo" value={result?.following_count ?? 0} />
-                <StatCard icon={<GalleryHorizontal className="w-6 h-6 text-primary"/>} label="Publicações" value={result?.media_count ?? 0} />
+          <div className="text-center space-y-6">
+            <div>
+              <Alert>
+                <Users className="h-4 w-4" />
+                <AlertTitle>{profile?.full_name}</AlertTitle>
+                <AlertDescription>
+                  <p className="font-bold">@{username.replace('@','')}</p>
+                  <p className="text-xs mt-1">{profile?.biography}</p>
+                </AlertDescription>
+              </Alert>
+              <div className="grid grid-cols-3 gap-2 text-center mt-4">
+                  <StatCard icon={<Users className="w-6 h-6 text-primary"/>} label="Seguidores" value={profile?.follower_count ?? 0} />
+                  <StatCard icon={<Rss className="w-6 h-6 text-primary"/>} label="Seguindo" value={profile?.following_count ?? 0} />
+                  <StatCard icon={<GalleryHorizontal className="w-6 h-6 text-primary"/>} label="Publicações" value={profile?.media_count ?? 0} />
+              </div>
             </div>
+
+            {posts.length > 0 && (
+              <div>
+                <Separator />
+                <h3 className="text-lg font-semibold my-4">Posts Recentes</h3>
+                <Carousel
+                  opts={{
+                    align: "start",
+                    loop: true,
+                  }}
+                  className="w-full"
+                >
+                  <CarouselContent>
+                    {posts.map((post, index) => (
+                      <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
+                        <div className="p-1 h-full">
+                          <PostCard post={post} />
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="ml-12"/>
+                  <CarouselNext className="mr-12"/>
+                </Carousel>
+              </div>
+            )}
+
             <Button onClick={handleReset} variant="outline">
               Buscar Outro Usuário
             </Button>
@@ -154,14 +253,14 @@ export function MediaUploader() {
   };
 
   return (
-    <Card className="w-full max-w-2xl shadow-lg">
+    <Card className="w-full max-w-4xl shadow-lg">
       <CardHeader>
         <CardTitle className="text-2xl font-headline">
           Analisador de Perfil do Instagram
         </CardTitle>
         <CardDescription>
           Insira um nome de usuário do Instagram para ver os dados do
-          perfil.
+          perfil e suas publicações.
         </CardDescription>
       </CardHeader>
       <CardContent>{renderContent()}</CardContent>
