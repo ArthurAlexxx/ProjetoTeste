@@ -17,6 +17,7 @@ const PostNodeSchema = z.object({
   video_versions: z.array(z.object({
       url: z.string(),
     })).optional().nullable(),
+  view_count: z.number().optional().nullable(),
 });
 
 const InstagramPostsAPIResponseSchema = z.object({
@@ -34,6 +35,7 @@ export type InstagramPost = {
   image_url: string | null;
   video_url: string | null;
   media_type: number;
+  view_count: number | null;
 };
 
 type ActionResponse = {
@@ -88,6 +90,7 @@ export async function getInstagramPosts(username: string): Promise<ActionRespons
       media_type: edge.node.media_type,
       image_url: edge.node.image_versions2?.candidates[0]?.url ?? null,
       video_url: edge.node.video_versions?.[0]?.url ?? null,
+      view_count: edge.node.view_count ?? null,
     }));
 
     return { success: true, data: finalData };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, Search, Loader2, XCircle, Users, Rss, GalleryHorizontal, Heart, MessageCircle } from "lucide-react";
+import { User, Search, Loader2, XCircle, Users, Rss, GalleryHorizontal, Heart, MessageCircle, PlayCircle } from "lucide-react";
 import Image from "next/image";
 import {
   Card,
@@ -60,10 +60,17 @@ const PostCard = ({ post }: { post: InstagramPost }) => {
         <p className="text-xs text-muted-foreground flex-grow mb-4">{post.caption}</p>
         <Separator className="my-2" />
         <div className="flex items-center justify-around text-xs">
-          <div className="flex items-center gap-1">
-            <Heart className="w-4 h-4 text-primary" />
-            <span>{post.like_count.toLocaleString("pt-BR")}</span>
-          </div>
+           {post.media_type === 2 ? (
+            <div className="flex items-center gap-1">
+              <PlayCircle className="w-4 h-4 text-primary" />
+              <span>{(post.view_count ?? 0).toLocaleString("pt-BR")}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Heart className="w-4 h-4 text-primary" />
+              <span>{post.like_count.toLocaleString("pt-BR")}</span>
+            </div>
+          )}
           <div className="flex items-center gap-1">
             <MessageCircle className="w-4 h-4 text-primary" />
             <span>{post.comment_count.toLocaleString("pt-BR")}</span>
