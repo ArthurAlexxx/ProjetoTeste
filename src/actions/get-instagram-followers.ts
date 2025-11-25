@@ -4,23 +4,32 @@ import { z } from 'zod';
 
 // Define o schema do usuário dentro da resposta da API
 const UserSchema = z.object({
-  follower_count: z.number(),
-  following_count: z.number(),
-  media_count: z.number(),
-  total_clips_count: z.number().optional().default(0), // Reels podem não existir
+  edge_followed_by: z.object({
+    count: z.number(),
+  }),
+  edge_follow: z.object({
+    count: z.number(),
+  }),
+  edge_owner_to_timeline_media: z.object({
+    count: z.number(),
+  }),
   full_name: z.string(),
   biography: z.string(),
 });
 
 // Define o schema da resposta completa da API da RapidAPI.
 const InstagramAPIResponseSchema = z.object({
-  result: z.array(z.object({
-    user: UserSchema,
-  })),
+  result: UserSchema,
 });
 
-// Extrai um tipo mais simples para o nosso uso, que será o tipo de retorno
-export type InstagramData = z.infer<typeof UserSchema>;
+// Define a estrutura de dados que nossa função retornará
+export type InstagramData = {
+  follower_count: number;
+  following_count: number;
+  media_count: number;
+  full_name: string;
+  biography: string;
+};
 
 // Define a estrutura do nosso retorno padronizado
 type ActionResponse = {
@@ -43,7 +52,7 @@ export async function getInstagramFollowers(username: string): Promise<ActionRes
     return { success: false, error: "O servidor não está configurado para se conectar à API. Fale com o administrador." };
   }
   
-  const url = `https://${apiHost}/api/instagram/userInfo`;
+  const url = `https://${apiHost}/api/instagram/profile`;
 
   const options = {
     method: 'POST',
@@ -69,14 +78,23 @@ export async function getInstagramFollowers(username: string): Promise<ActionRes
     // Valida a resposta da API com o Zod
     const parsedResponse = InstagramAPIResponseSchema.safeParse(result);
 
-    if (!parsedResponse.success || parsedResponse.data.result.length === 0) {
+    if (!parsedResponse.success) {
       console.error("Não foi possível encontrar os dados do usuário na resposta da API ou o formato é inesperado:", result);
       return { success: false, error: "A resposta da API não retornou os dados do usuário no formato esperado." };
     }
 
-    const userData = parsedResponse.data.result[0].user;
+    const userData = parsedResponse.data.result;
 
-    return { success: true, data: userData };
+    // Mapeia os dados da API para o nosso tipo de dados
+    const finalData: InstagramData = {
+      follower_count: userData.edge_followed_by.count,
+      following_count: userData.edge_follow.count,
+      media_count: userData.edge_owner_to_timeline_media.count,
+      full_name: userData.full_name,
+      biography: userData.biography,
+    };
+
+    return { success: true, data: finalData };
 
   } catch (error: any) {
     console.error("Falha ao buscar dados da RapidAPI:", error);

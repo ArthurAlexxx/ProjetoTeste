@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, Search, Loader2, XCircle, Users, Rss, GalleryHorizontal, Film } from "lucide-react";
+import { User, Search, Loader2, XCircle, Users, Rss, GalleryHorizontal } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -102,11 +102,10 @@ export function MediaUploader() {
                 <p className="text-xs mt-1">{result?.biography}</p>
               </AlertDescription>
             </Alert>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+            <div className="grid grid-cols-3 gap-2 text-center">
                 <StatCard icon={<Users className="w-6 h-6 text-primary"/>} label="Seguidores" value={result?.follower_count ?? 0} />
                 <StatCard icon={<Rss className="w-6 h-6 text-primary"/>} label="Seguindo" value={result?.following_count ?? 0} />
                 <StatCard icon={<GalleryHorizontal className="w-6 h-6 text-primary"/>} label="Publicações" value={result?.media_count ?? 0} />
-                <StatCard icon={<Film className="w-6 h-6 text-primary"/>} label="Reels" value={result?.total_clips_count ?? 0} />
             </div>
             <Button onClick={handleReset} variant="outline">
               Buscar Outro Usuário
