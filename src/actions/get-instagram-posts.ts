@@ -33,9 +33,7 @@ export type InstagramPost = {
   comment_count: number;
   caption: string;
   image_url: string | null;
-  video_url: string | null;
   media_type: number;
-  view_count: number | null;
 };
 
 type ActionResponse = {
@@ -89,8 +87,6 @@ export async function getInstagramPosts(username: string): Promise<ActionRespons
       caption: edge.node.caption?.text ?? '',
       media_type: edge.node.media_type,
       image_url: edge.node.image_versions2?.candidates[0]?.url ?? null,
-      video_url: edge.node.video_versions?.[0]?.url ?? null,
-      view_count: edge.node.view_count ?? null,
     }));
 
     return { success: true, data: finalData };

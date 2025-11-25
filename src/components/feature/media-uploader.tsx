@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, Search, Loader2, XCircle, Users, Rss, GalleryHorizontal, Heart, MessageCircle, PlayCircle } from "lucide-react";
+import { User, Search, Loader2, XCircle, Users, Rss, GalleryHorizontal, Heart, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import {
   Card,
@@ -37,15 +37,12 @@ const StatCard = ({ icon, label, value }: { icon: React.ReactNode, label: string
 );
 
 const PostCard = ({ post }: { post: InstagramPost }) => {
-  const mediaUrl = post.media_type === 2 ? post.video_url : post.image_url;
+  const mediaUrl = post.image_url;
 
   return (
     <Card className="flex flex-col">
       <CardContent className="p-0">
         {mediaUrl ? (
-          post.media_type === 2 ? (
-            <video controls src={mediaUrl} className="w-full h-auto rounded-t-lg" />
-          ) : (
             <Image
               src={mediaUrl}
               alt="Post media"
@@ -53,24 +50,16 @@ const PostCard = ({ post }: { post: InstagramPost }) => {
               height={600}
               className="w-full h-auto object-cover rounded-t-lg"
             />
-          )
         ) : <div className="w-full h-64 bg-secondary rounded-t-lg flex items-center justify-center text-muted-foreground">Sem Mídia</div>}
       </CardContent>
       <div className="p-4 flex-grow flex flex-col">
         <p className="text-xs text-muted-foreground flex-grow mb-4">{post.caption}</p>
         <Separator className="my-2" />
         <div className="flex items-center justify-around text-xs">
-           {post.media_type === 2 ? (
-            <div className="flex items-center gap-1">
-              <PlayCircle className="w-4 h-4 text-primary" />
-              <span>{(post.view_count ?? 0).toLocaleString("pt-BR")}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1">
-              <Heart className="w-4 h-4 text-primary" />
-              <span>{post.like_count.toLocaleString("pt-BR")}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <Heart className="w-4 h-4 text-primary" />
+            <span>{post.like_count.toLocaleString("pt-BR")}</span>
+          </div>
           <div className="flex items-center gap-1">
             <MessageCircle className="w-4 h-4 text-primary" />
             <span>{post.comment_count.toLocaleString("pt-BR")}</span>
