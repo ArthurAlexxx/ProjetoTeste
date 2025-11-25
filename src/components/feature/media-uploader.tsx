@@ -1,13 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import {
-  User,
-  Search,
-  Loader2,
-  XCircle,
-  Users,
-} from "lucide-react";
+import { useState } from "react";
+import { User, Search, Loader2, XCircle, Users } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -36,22 +30,30 @@ export function MediaUploader() {
       setStatus("error");
       return;
     }
-    
+
     setStatus("loading");
     setError("");
     setResult(null);
 
     try {
-      const response = await getInstagramFollowers(username.replace('@', ''));
+      // Remove o '@' se o usuário tiver digitado
+      const cleanUsername = username.replace('@', '');
+      const response = await getInstagramFollowers(cleanUsername);
+
       if (response.success && response.data) {
         setResult({ followers: response.data.followers });
         setStatus("success");
         toast({
           title: "Sucesso!",
-          description: `O usuário @${username} tem ${response.data.followers.toLocaleString('pt-BR')} seguidores.`,
+          description: `O usuário @${cleanUsername} tem ${response.data.followers.toLocaleString(
+            "pt-BR"
+          )} seguidores.`,
         });
       } else {
-        throw new Error(response.error || "Não foi possível encontrar os dados.");
+        // Usa o erro retornado pela nossa server action
+        throw new Error(
+          response.error || "Não foi possível encontrar os dados."
+        );
       }
     } catch (e: any) {
       console.error("Erro ao buscar seguidores:", e);
@@ -65,7 +67,7 @@ export function MediaUploader() {
       });
     }
   };
-  
+
   const handleReset = () => {
     setUsername("");
     setStatus("idle");
@@ -93,8 +95,10 @@ export function MediaUploader() {
               <Users className="h-4 w-4" />
               <AlertTitle>Busca Concluída</AlertTitle>
               <AlertDescription>
-                O usuário <strong>@{username}</strong> tem <br />
-                <span className="text-2xl font-bold">{result?.followers.toLocaleString('pt-BR')}</span>
+                O usuário <strong>@{username.replace('@','')}</strong> tem <br />
+                <span className="text-2xl font-bold">
+                  {result?.followers.toLocaleString("pt-BR")}
+                </span>
                 <br /> seguidores.
               </AlertDescription>
             </Alert>
@@ -129,10 +133,13 @@ export function MediaUploader() {
                 className="pl-10"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               />
             </div>
-            <Button onClick={handleSearch} disabled={status === 'loading' || !username}>
+            <Button
+              onClick={handleSearch}
+              disabled={status === "loading" || !username}
+            >
               <Search className="mr-2" />
               Buscar Seguidores
             </Button>
@@ -144,9 +151,12 @@ export function MediaUploader() {
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline">Buscador de Seguidores</CardTitle>
+        <CardTitle className="text-2xl font-headline">
+          Buscador de Seguidores
+        </CardTitle>
         <CardDescription>
-          Insira um nome de usuário do Instagram para ver o número de seguidores.
+          Insira um nome de usuário do Instagram para ver o número de
+          seguidores.
         </CardDescription>
       </CardHeader>
       <CardContent>{renderContent()}</CardContent>
