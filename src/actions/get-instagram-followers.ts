@@ -36,7 +36,7 @@ export async function getInstagramFollowers(username: string): Promise<ActionRes
   }
 
   // A URL pode variar. Verifique a documentação da API na RapidAPI.
-  const url = `https://${apiHost}/user/info_by_username`;
+  const url = `https://${apiHost}/api/instagram/userInfo`;
 
   const options = {
     method: 'POST',
