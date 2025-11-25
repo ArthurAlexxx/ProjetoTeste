@@ -3,16 +3,24 @@
 import { z } from 'zod';
 
 // Define o schema esperado da resposta da API da RapidAPI.
-// Isso pode precisar de ajuste dependendo da API que você escolher.
+// A resposta real pode ser mais complexa, mas estamos interessados apenas nos seguidores.
 const InstagramAPIResponseSchema = z.object({
-  followers: z.number(),
-  // Adicione outros campos que você possa querer usar, como 'following', 'full_name', etc.
+  data: z.object({
+    user: z.object({
+      edge_followed_by: z.object({
+        count: z.number(),
+      }),
+    }),
+  }),
 });
+
+// Extrai um tipo mais simples para o nosso uso
+const FollowersSchema = z.number();
 
 // Define a estrutura do nosso retorno padronizado
 type ActionResponse = {
   success: boolean;
-  data?: z.infer<typeof InstagramAPIResponseSchema>;
+  data?: { followers: number };
   error?: string;
 };
 
@@ -30,17 +38,21 @@ export async function getInstagramFollowers(username: string): Promise<ActionRes
     return { success: false, error: "O servidor não está configurado para se conectar à API. Fale com o administrador." };
   }
 
-  // A URL pode variar dependendo da API escolhida na RapidAPI.
-  // Consulte a documentação da API na RapidAPI para a URL correta.
-  // Exemplo de URL comum: `https://<api-host>/user/info?username=<username>`
-  const url = `https://${apiHost}/user/info?username=${username}`;
+  // A URL pode variar. Verifique a documentação da API na RapidAPI.
+  // Como a API espera um POST, a URL provavelmente não terá parâmetros.
+  const url = `https://${apiHost}/user/info`;
 
   const options = {
-    method: 'GET',
+    method: 'POST',
     headers: {
+      'content-type': 'application/json',
       'X-RapidAPI-Key': apiKey,
       'X-RapidAPI-Host': apiHost
-    }
+    },
+    body: JSON.stringify({
+      username: username,
+      maxId: "" // Parâmetro adicional que a API pode esperar, mesmo que vazio
+    })
   };
 
   try {
@@ -48,20 +60,23 @@ export async function getInstagramFollowers(username: string): Promise<ActionRes
     const result = await response.json();
 
     if (!response.ok) {
-       // Tenta extrair uma mensagem de erro da resposta da API
       const errorMessage = result.message || `Erro do servidor: ${response.status}`;
       throw new Error(errorMessage);
     }
     
-    // Valida se a resposta da API corresponde ao nosso schema esperado
-    const parsedData = InstagramAPIResponseSchema.safeParse(result);
+    // O formato da resposta pode variar muito entre as APIs.
+    // O schema abaixo é uma suposição comum baseada em APIs que retornam dados do GraphQL do Instagram.
+    // Você talvez precise ajustá-lo com base na resposta REAL que você vê no "Results" da RapidAPI.
+    const followers = result?.data?.user?.edge_followed_by?.count;
 
-    if (!parsedData.success) {
-      console.error("A resposta da API não corresponde ao formato esperado:", parsedData.error);
-      return { success: false, error: "O formato da resposta da API mudou ou é inesperado." };
+    const parsedFollowers = FollowersSchema.safeParse(followers);
+
+    if (!parsedFollowers.success) {
+      console.error("Não foi possível encontrar 'count' na resposta da API ou o formato é inesperado:", result);
+      return { success: false, error: "A resposta da API não retornou o número de seguidores no formato esperado." };
     }
 
-    return { success: true, data: parsedData.data };
+    return { success: true, data: { followers: parsedFollowers.data } };
 
   } catch (error: any) {
     console.error("Falha ao buscar dados da RapidAPI:", error);

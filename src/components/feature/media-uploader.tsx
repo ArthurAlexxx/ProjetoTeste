@@ -18,7 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 type Status = "idle" | "loading" | "success" | "error";
 
 export function MediaUploader() {
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState("thurzinxn_");
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<{ followers: number } | null>(null);
   const [error, setError] = useState<string>("");
@@ -69,7 +69,6 @@ export function MediaUploader() {
   };
 
   const handleReset = () => {
-    setUsername("");
     setStatus("idle");
     setResult(null);
     setError("");
