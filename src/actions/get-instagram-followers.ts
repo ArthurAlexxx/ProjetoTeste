@@ -3,15 +3,12 @@
 import { z } from 'zod';
 
 // Define o schema esperado da resposta da API da RapidAPI.
-// A resposta real pode ser mais complexa, mas estamos interessados apenas nos seguidores.
 const InstagramAPIResponseSchema = z.object({
-  data: z.object({
+  result: z.array(z.object({
     user: z.object({
-      edge_followed_by: z.object({
-        count: z.number(),
-      }),
+      follower_count: z.number(),
     }),
-  }),
+  })),
 });
 
 // Extrai um tipo mais simples para o nosso uso
@@ -39,8 +36,7 @@ export async function getInstagramFollowers(username: string): Promise<ActionRes
   }
 
   // A URL pode variar. Verifique a documentação da API na RapidAPI.
-  // Como a API espera um POST, a URL provavelmente não terá parâmetros.
-  const url = `https://${apiHost}/user/info`;
+  const url = `https://${apiHost}/user/info_by_username`;
 
   const options = {
     method: 'POST',
@@ -51,7 +47,6 @@ export async function getInstagramFollowers(username: string): Promise<ActionRes
     },
     body: JSON.stringify({
       username: username,
-      maxId: "" // Parâmetro adicional que a API pode esperar, mesmo que vazio
     })
   };
 
@@ -64,15 +59,13 @@ export async function getInstagramFollowers(username: string): Promise<ActionRes
       throw new Error(errorMessage);
     }
     
-    // O formato da resposta pode variar muito entre as APIs.
-    // O schema abaixo é uma suposição comum baseada em APIs que retornam dados do GraphQL do Instagram.
-    // Você talvez precise ajustá-lo com base na resposta REAL que você vê no "Results" da RapidAPI.
-    const followers = result?.data?.user?.edge_followed_by?.count;
+    // Caminho para o número de seguidores baseado na resposta real da API.
+    const followers = result?.result?.[0]?.user?.follower_count;
 
     const parsedFollowers = FollowersSchema.safeParse(followers);
 
     if (!parsedFollowers.success) {
-      console.error("Não foi possível encontrar 'count' na resposta da API ou o formato é inesperado:", result);
+      console.error("Não foi possível encontrar 'follower_count' na resposta da API ou o formato é inesperado:", result);
       return { success: false, error: "A resposta da API não retornou o número de seguidores no formato esperado." };
     }
 
