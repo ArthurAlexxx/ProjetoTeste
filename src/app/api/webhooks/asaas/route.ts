@@ -34,7 +34,8 @@ export async function POST(request: Request) {
   console.log('Token recebido (Asaas Header):', requestToken);
   console.log('--------------------------');
   
-  if (asaasToken && requestToken !== asaasToken) {
+  // Compara os tokens de forma segura, removendo espaços em branco
+  if (asaasToken && requestToken?.trim() !== asaasToken.trim()) {
     console.error('Falha na autenticação do Webhook: Tokens não correspondem.');
     return NextResponse.json({ error: 'Token de autenticação inválido.' }, { status: 401 });
   }
