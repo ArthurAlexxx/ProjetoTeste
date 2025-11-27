@@ -90,14 +90,6 @@ export default function PaymentPage() {
     }
   }, []);
 
-  // Check localStorage for plan status on initial load
-  useEffect(() => {
-    const storedPlan = localStorage.getItem('userPlan') as UserPlan;
-    if (storedPlan === 'pro') {
-      setUserPlan('pro');
-    }
-  }, []);
-
   // Poll for payment status when a paymentRef is set
   useEffect(() => {
     if (paymentRef && userPlan === 'free') {
@@ -108,7 +100,6 @@ export default function PaymentPage() {
 
           const result = await response.json();
           if (result.status === 'PAID') {
-            localStorage.setItem('userPlan', 'pro');
             setUserPlan('pro');
             setShowConfetti(true);
             setPaymentRef(null);
