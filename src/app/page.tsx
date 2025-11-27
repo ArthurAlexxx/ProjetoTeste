@@ -51,8 +51,17 @@ export default function CustomerPage() {
     setStatus('loading');
     setError(null);
     setCustomerResponse(null);
+
+    const apiKey = process.env.NEXT_PUBLIC_ASAAS_API_KEY;
+
+    if (!apiKey) {
+      setError('A chave de API do Asaas não foi configurada. Verifique a variável NEXT_PUBLIC_ASAAS_API_KEY no seu ambiente.');
+      setStatus('error');
+      return;
+    }
+
     try {
-      const response = await createAsaasCustomer(data);
+      const response = await createAsaasCustomer(data, apiKey);
       if (response.error) {
         throw new Error(response.error);
       }
