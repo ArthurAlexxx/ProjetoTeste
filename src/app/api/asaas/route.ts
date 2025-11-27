@@ -1,3 +1,5 @@
+'use server';
+
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -11,36 +13,49 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, cpfCnpj, email, phone, billingType, value, dueDate, description, externalReference } = body;
 
-    // Etapa 1: Criar o Cliente
-    const customerData: any = { name, cpfCnpj };
-    if (email) customerData.email = email;
-    if (phone) customerData.mobilePhone = phone;
+    // Para pagamentos com Cartão de Crédito, é melhor enviar os dados do cliente
+    // junto com a cobrança para evitar inconsistências no nome do portador.
+    // O Asaas criará o cliente no momento do pagamento.
+    // Para outros métodos, a criação antecipada do cliente funciona bem.
+    
+    let customerId: string | undefined;
 
-    const customerResponse = await fetch('https://api-sandbox.asaas.com/v3/customers', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'access_token': apiKey,
-      },
-      body: JSON.stringify(customerData),
-    });
+    if (billingType !== 'CREDIT_CARD') {
+        const customerData: any = { name, cpfCnpj };
+        if (email) customerData.email = email;
+        if (phone) customerData.mobilePhone = phone;
 
-    const customerResult = await customerResponse.json();
+        const customerResponse = await fetch('https://api-sandbox.asaas.com/v3/customers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'access_token': apiKey },
+            body: JSON.stringify(customerData),
+        });
 
-    if (!customerResponse.ok) {
-        const errorMessage = customerResult.errors?.[0]?.description || 'Verifique os dados do cliente ou a chave de API.';
-        return NextResponse.json({ error: `Erro ao criar cliente: ${errorMessage}` }, { status: customerResponse.status });
+        const customerResult = await customerResponse.json();
+
+        if (!customerResponse.ok) {
+            const errorMessage = customerResult.errors?.[0]?.description || 'Verifique os dados do cliente ou a chave de API.';
+            return NextResponse.json({ error: `Erro ao criar cliente: ${errorMessage}` }, { status: customerResponse.status });
+        }
+        customerId = customerResult.id;
     }
 
     // Etapa 2: Criar a Cobrança
-    const paymentData = {
-      customer: customerResult.id,
+    const paymentData: any = {
       billingType,
       value,
       dueDate,
       description,
       externalReference: externalReference || `PEDIDO-${Date.now()}`
     };
+
+    if (customerId) {
+        paymentData.customer = customerId;
+    } else {
+        // Envia os dados do cliente para serem criados junto com o pagamento
+        paymentData.customer = { name, cpfCnpj, email, mobilePhone: phone };
+    }
+
 
     const paymentResponse = await fetch('https://api-sandbox.asaas.com/v3/payments', {
         method: 'POST',
@@ -71,13 +86,11 @@ export async function POST(request: Request) {
         const qrCodeResult = await qrCodeResponse.json();
 
         if (qrCodeResponse.ok) {
-            // Adiciona os dados do QR Code ao resultado do pagamento
             paymentResult.pixQrCode = qrCodeResult;
         } else {
             console.warn(`Não foi possível obter o QR Code para a cobrança ${paymentResult.id}.`);
         }
     }
-
 
     return NextResponse.json(paymentResult, { status: 200 });
 
