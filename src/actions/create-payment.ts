@@ -17,7 +17,7 @@ export async function createAsaasCustomer(customerData: CustomerData) {
   }
 
   try {
-    const customerResponse = await fetch('https://api.asaas.com/v3/customers', {
+    const customerResponse = await fetch('https://api-sandbox.asaas.com/v3/customers', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
