@@ -26,24 +26,10 @@ async function writePayments(data: any) {
  * https://docs.asaas.com/docs/eventos-de-webhook
  */
 export async function POST(request: Request) {
-  const asaasToken = process.env.ASAAS_WEBHOOK_TOKEN;
-  const requestToken = request.headers.get('asaas-webhook-token');
-
-  console.log('--- DEBUG Webhook Auth ---');
-  console.log('Token esperado (Vercel Env):', asaasToken);
-  console.log('Token recebido (Asaas Header):', requestToken);
-  console.log('--------------------------');
-  
-  // Compara os tokens de forma segura, removendo espaços em branco
-  if (asaasToken && requestToken?.trim() !== asaasToken.trim()) {
-    console.error('Falha na autenticação do Webhook: Tokens não correspondem.');
-    return NextResponse.json({ error: 'Token de autenticação inválido.' }, { status: 401 });
-  }
-
   try {
     const event = await request.json();
 
-    console.log('Webhook Asaas recebido e autenticado:', JSON.stringify(event, null, 2));
+    console.log('Webhook Asaas recebido:', JSON.stringify(event, null, 2));
 
     // Processa apenas eventos de pagamento confirmado ou recebido
     if (event.event === 'PAYMENT_RECEIVED' || event.event === 'PAYMENT_CONFIRMED') {
