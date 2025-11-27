@@ -13,13 +13,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, cpfCnpj, email, phone, billingType, value, dueDate, description, externalReference } = body;
 
+    let customerId: string | undefined;
+
     // Para pagamentos com Cartão de Crédito, é melhor enviar os dados do cliente
     // junto com a cobrança para evitar inconsistências no nome do portador.
     // O Asaas criará o cliente no momento do pagamento.
-    // Para outros métodos, a criação antecipada do cliente funciona bem.
-    
-    let customerId: string | undefined;
-
     if (billingType !== 'CREDIT_CARD') {
         const customerData: any = { name, cpfCnpj };
         if (email) customerData.email = email;
@@ -51,7 +49,7 @@ export async function POST(request: Request) {
 
     if (customerId) {
         paymentData.customer = customerId;
-    } else {
+    } else if (billingType === 'CREDIT_CARD') {
         // Envia os dados do cliente para serem criados junto com o pagamento (para Cartão de Crédito)
         paymentData.customer = { name, cpfCnpj, email, mobilePhone: phone };
     }
@@ -72,12 +70,6 @@ export async function POST(request: Request) {
         const errorMessage = paymentResult.errors?.[0]?.description || 'Verifique os dados da cobrança.';
         return NextResponse.json({ error: `Erro ao criar cobrança: ${errorMessage}` }, { status: paymentResponse.status });
     }
-    
-    // Adiciona o nossoNumero (linha digitável) à resposta se for boleto
-    if (paymentResult.billingType === 'BOLETO') {
-        paymentResult.identificationField = paymentResult.nossoNumero;
-    }
-
 
     // Etapa 3: Se for PIX, buscar o QR Code
     if (paymentResult.billingType === 'PIX' && paymentResult.id) {

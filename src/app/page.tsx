@@ -111,8 +111,7 @@ export default function PaymentPage() {
           const result = await response.json();
           if (result.status === 'PAID') {
             setUserPlan('pro');
-            setPaymentRef(null);
-            clearInterval(interval);
+            setPaymentRef(null); // Para o polling
           }
         } catch (e) {
           console.error('Error checking payment status:', e);
@@ -154,9 +153,8 @@ export default function PaymentPage() {
       
       setPaymentResponse(result);
       setStatus('success');
-      setPaymentRef(externalReference); // Inicia a checagem para todos os tipos
+      setPaymentRef(externalReference); 
 
-      // Se for Cartão de Crédito e tiver a URL da fatura, redireciona
       if (result.billingType === 'CREDIT_CARD' && result.invoiceUrl) {
           window.open(result.invoiceUrl, '_blank');
       }
