@@ -78,7 +78,6 @@ export default function PaymentPage() {
     },
   });
 
-  // Handle window resize for confetti
    useEffect(() => {
     const handleResize = () => {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
@@ -90,7 +89,6 @@ export default function PaymentPage() {
     }
   }, []);
 
-  // Poll for payment status when a paymentRef is set
   useEffect(() => {
     if (paymentRef && userPlan === 'free') {
       const interval = setInterval(async () => {
@@ -108,7 +106,7 @@ export default function PaymentPage() {
         } catch (e) {
           console.error('Error checking payment status:', e);
         }
-      }, 2000); // Check every 2 seconds
+      }, 2000); 
 
       return () => clearInterval(interval);
     }
@@ -145,7 +143,6 @@ export default function PaymentPage() {
       
       setPaymentResponse(result);
       setStatus('success');
-      // Only start polling for non-credit card payments
       if (result.billingType !== 'CREDIT_CARD') {
          setPaymentRef(externalReference);
       }
@@ -164,6 +161,8 @@ export default function PaymentPage() {
     setStatus('idle');
     setPaymentResponse(null);
     setPaymentRef(null);
+    setUserPlan('free');
+    setShowConfetti(false);
     form.reset({ value: 5, description: 'Acesso ao Plano Pro', dueDate: new Date() });
   }
 
@@ -177,6 +176,7 @@ export default function PaymentPage() {
         <Rocket className="h-6 w-6"/>
         <span>Acesso a todas as funcionalidades exclusivas liberado.</span>
       </div>
+       <Button onClick={resetForm} className="w-full mt-6" variant="outline">Fazer Novo Pagamento</Button>
     </div>
   );
 
@@ -237,7 +237,7 @@ export default function PaymentPage() {
      }
 
      return (
-        <Form {...form}>
+      <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
