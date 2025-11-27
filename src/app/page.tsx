@@ -373,20 +373,11 @@ export default function PaymentPage() {
         {paymentResponse.billingType === 'BOLETO' && paymentResponse.bankSlipUrl && (
             <div className='space-y-4'>
                 <div>
-                <FormLabel>Linha Digitável</FormLabel>
-                <div className="flex items-center space-x-2">
-                    <Input value={paymentResponse.identificationField} readOnly className="flex-grow"/>
-                    <Button onClick={() => copyToClipboard(paymentResponse.identificationField)} size="icon" variant="outline">
-                    <Copy className="h-4 w-4" />
-                    </Button>
+                    <FormLabel>Visualizar Boleto</FormLabel>
+                    <a href={paymentResponse.bankSlipUrl} target="_blank" rel="noopener noreferrer">
+                        <Button className='w-full' variant="secondary">Abrir Boleto em nova aba</Button>
+                    </a>
                 </div>
-            </div>
-            <div>
-                <FormLabel>Visualizar Boleto</FormLabel>
-                <a href={paymentResponse.bankSlipUrl} target="_blank" rel="noopener noreferrer">
-                    <Button className='w-full' variant="secondary">Abrir Boleto em nova aba</Button>
-                </a>
-            </div>
             </div>
         )}
         
