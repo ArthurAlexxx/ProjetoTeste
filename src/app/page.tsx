@@ -90,6 +90,14 @@ export default function PaymentPage() {
   }, []);
 
   useEffect(() => {
+    if (userPlan === 'pro') {
+        setShowConfetti(true);
+        const timer = setTimeout(() => setShowConfetti(false), 8000);
+        return () => clearTimeout(timer);
+    }
+  }, [userPlan]);
+
+  useEffect(() => {
     if (paymentRef && userPlan === 'free') {
       const interval = setInterval(async () => {
         try {
@@ -99,7 +107,6 @@ export default function PaymentPage() {
           const result = await response.json();
           if (result.status === 'PAID') {
             setUserPlan('pro');
-            setShowConfetti(true);
             setPaymentRef(null);
             clearInterval(interval);
           }
@@ -143,12 +150,14 @@ export default function PaymentPage() {
       
       setPaymentResponse(result);
       setStatus('success');
+      
       if (result.billingType !== 'CREDIT_CARD') {
          setPaymentRef(externalReference);
       } else {
         if (result.status === 'CONFIRMED' || result.status === 'RECEIVED') {
             setUserPlan('pro');
-            setShowConfetti(true);
+        } else {
+            setPaymentRef(externalReference);
         }
       }
 
@@ -163,6 +172,7 @@ export default function PaymentPage() {
   };
 
   const resetForm = () => {
+    // Recarrega a página para resetar o estado para testes
     window.location.reload();
   }
 
@@ -341,7 +351,11 @@ export default function PaymentPage() {
   const renderSuccessView = () => (
     <div className="flex flex-col items-center text-center w-full">
         <h2 className="text-2xl font-bold text-accent mb-4">Cobrança Gerada</h2>
-        <p className="mb-4 text-muted-foreground">Efetue o pagamento para concluir. Estamos aguardando a confirmação.</p>
+
+        {paymentResponse.billingType !== 'CREDIT_CARD' && (
+            <p className="mb-4 text-muted-foreground">Efetue o pagamento para concluir. Estamos aguardando a confirmação.</p>
+        )}
+        
         <Card className="w-full text-left p-6 space-y-4">
             <p className='text-sm'><strong>ID da Cobrança:</strong> {paymentResponse.id}</p>
             
@@ -379,11 +393,12 @@ export default function PaymentPage() {
             </div>
         )}
         {paymentResponse.billingType === 'CREDIT_CARD' && paymentResponse.invoiceUrl && (
-            <div>
-            <FormLabel>Pagar Fatura</FormLabel>
-            <a href={paymentResponse.invoiceUrl} target="_blank" rel="noopener noreferrer">
-                <Button className='w-full'>Pagar com Cartão de Crédito</Button>
-            </a>
+            <div className='space-y-4'>
+                <p className="text-sm text-muted-foreground">Clique no botão abaixo para ser redirecionado para a página de pagamento segura e finalizar sua compra com cartão de crédito.</p>
+                <a href={paymentResponse.invoiceUrl} target="_blank" rel="noopener noreferrer">
+                    <Button className='w-full'>Pagar com Cartão de Crédito</Button>
+                </a>
+                 <p className="text-xs text-center text-muted-foreground pt-2">Estamos aguardando a confirmação do seu pagamento...</p>
             </div>
         )}
         </Card>
