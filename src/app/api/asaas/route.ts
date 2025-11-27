@@ -51,12 +51,33 @@ export async function POST(request: Request) {
         body: JSON.stringify(paymentData),
     });
     
-    const paymentResult = await paymentResponse.json();
+    let paymentResult = await paymentResponse.json();
 
     if (!paymentResponse.ok) {
         const errorMessage = paymentResult.errors?.[0]?.description || 'Verifique os dados da cobrança.';
         return NextResponse.json({ error: `Erro ao criar cobrança: ${errorMessage}` }, { status: paymentResponse.status });
     }
+
+    // Etapa 3: Se for PIX, buscar o QR Code
+    if (paymentResult.billingType === 'PIX' && paymentResult.id) {
+        const qrCodeResponse = await fetch(`https://api-sandbox.asaas.com/v3/payments/${paymentResult.id}/pixQrCode`, {
+            method: 'GET',
+            headers: {
+                'accept': 'application/json',
+                'access_token': apiKey,
+            }
+        });
+
+        const qrCodeResult = await qrCodeResponse.json();
+
+        if (qrCodeResponse.ok) {
+            // Adiciona os dados do QR Code ao resultado do pagamento
+            paymentResult.pixQrCode = qrCodeResult;
+        } else {
+            console.warn(`Não foi possível obter o QR Code para a cobrança ${paymentResult.id}.`);
+        }
+    }
+
 
     return NextResponse.json(paymentResult, { status: 200 });
 

@@ -67,14 +67,28 @@ export default function PaymentPage() {
   const [userPlan, setUserPlan] = useState<UserPlan>('free');
   const [paymentRef, setPaymentRef] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [windowSize, setWindowSize] = useState<{width: number, height: number}>({width: 0, height: 0});
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       value: 5,
       description: 'Acesso ao Plano Pro',
+      dueDate: new Date(),
     },
   });
+
+  // Handle window resize for confetti
+   useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    if (typeof window !== 'undefined') {
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
 
   // Check localStorage for plan status on initial load
   useEffect(() => {
@@ -90,11 +104,14 @@ export default function PaymentPage() {
       const interval = setInterval(async () => {
         try {
           const response = await fetch(`/api/status?ref=${paymentRef}`);
+          if (!response.ok) return;
+
           const result = await response.json();
           if (result.status === 'PAID') {
             localStorage.setItem('userPlan', 'pro');
             setUserPlan('pro');
             setShowConfetti(true);
+            setPaymentRef(null);
             clearInterval(interval);
           }
         } catch (e) {
@@ -113,8 +130,7 @@ export default function PaymentPage() {
     setPaymentResponse(null);
 
     const externalReference = `PRO-SUB-${Date.now()}`;
-    setPaymentRef(externalReference); // Save ref to start polling
-
+    
     const formattedData = {
       ...data,
       dueDate: format(data.dueDate, 'yyyy-MM-dd'),
@@ -135,9 +151,14 @@ export default function PaymentPage() {
       if (!response.ok) {
         throw new Error(result.error || 'Ocorreu um erro desconhecido.');
       }
-
+      
       setPaymentResponse(result);
       setStatus('success');
+      // Only start polling for non-credit card payments
+      if (result.billingType !== 'CREDIT_CARD') {
+         setPaymentRef(externalReference);
+      }
+
     } catch (e: any) {
       setError(e.message);
       setStatus('error');
@@ -152,12 +173,12 @@ export default function PaymentPage() {
     setStatus('idle');
     setPaymentResponse(null);
     setPaymentRef(null);
-    form.reset({ value: 5, description: 'Acesso ao Plano Pro' });
+    form.reset({ value: 5, description: 'Acesso ao Plano Pro', dueDate: new Date() });
   }
 
   const renderProView = () => (
     <div className="flex flex-col items-center text-center w-full">
-       {showConfetti && <ReactConfetti width={window.innerWidth} height={window.innerHeight} />}
+       {showConfetti && <ReactConfetti width={windowSize.width} height={windowSize.height} />}
       <PartyPopper className="h-16 w-16 text-accent mb-4" />
       <h2 className="text-3xl font-bold text-accent mb-2">Parabéns!</h2>
       <p className="text-xl text-muted-foreground mb-6">Você agora é um usuário Pro!</p>
@@ -174,37 +195,45 @@ export default function PaymentPage() {
         <div className="flex flex-col items-center text-center w-full">
           <h2 className="text-2xl font-bold text-accent mb-4">Cobrança Gerada</h2>
           <p className="mb-4 text-muted-foreground">Efetue o pagamento para concluir. Estamos aguardando a confirmação.</p>
-          <Card className="w-full text-left p-4">
-              <p className='mb-2'><strong>ID da Cobrança:</strong> {paymentResponse.id}</p>
+          <Card className="w-full text-left p-6 space-y-4">
+              <p className='text-sm'><strong>ID da Cobrança:</strong> {paymentResponse.id}</p>
+              
               {paymentResponse.billingType === 'PIX' && paymentResponse.pixQrCode?.payload && (
               <div>
-                <p className="font-bold mb-2">PIX QR Code:</p>
+                <FormLabel>PIX Copia e Cola</FormLabel>
                 <div className="flex items-center space-x-2">
-                  <Input value={paymentResponse.pixQrCode.payload} readOnly className="flex-grow"/>
-                  <Button onClick={() => copyToClipboard(paymentResponse.pixQrCode.payload)} size="icon">
+                  <Input value={paymentResponse.pixQrCode.payload} readOnly className="flex-grow text-xs"/>
+                  <Button onClick={() => copyToClipboard(paymentResponse.pixQrCode.payload)} size="icon" variant="outline">
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
-                <img src={`data:image/png;base64,${paymentResponse.pixQrCode.encodedImage}`} alt="PIX QR Code" className="mx-auto my-4"/>
+                {paymentResponse.pixQrCode.encodedImage && (
+                    <img src={`data:image/png;base64,${paymentResponse.pixQrCode.encodedImage}`} alt="PIX QR Code" className="mx-auto my-4 rounded-md border p-2"/>
+                )}
               </div>
             )}
             {paymentResponse.billingType === 'BOLETO' && paymentResponse.bankSlipUrl && (
-              <div>
-                <p className="font-bold mb-2">Boleto:</p>
-                <a href={paymentResponse.bankSlipUrl} target="_blank" rel="noopener noreferrer">
-                  <Button className='w-full'>Visualizar Boleto</Button>
-                </a>
-                 <div className="flex items-center space-x-2 mt-2">
-                  <Input value={paymentResponse.identificationField} readOnly className="flex-grow"/>
-                  <Button onClick={() => copyToClipboard(paymentResponse.identificationField)} size="icon">
-                    <Copy className="h-4 w-4" />
-                  </Button>
+              <div className='space-y-4'>
+                 <div>
+                    <FormLabel>Linha Digitável</FormLabel>
+                    <div className="flex items-center space-x-2">
+                      <Input value={paymentResponse.identificationField} readOnly className="flex-grow"/>
+                      <Button onClick={() => copyToClipboard(paymentResponse.identificationField)} size="icon" variant="outline">
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                </div>
+                <div>
+                    <FormLabel>Visualizar Boleto</FormLabel>
+                    <a href={paymentResponse.bankSlipUrl} target="_blank" rel="noopener noreferrer">
+                      <Button className='w-full' variant="secondary">Abrir Boleto em nova aba</Button>
+                    </a>
                 </div>
               </div>
             )}
             {paymentResponse.billingType === 'CREDIT_CARD' && paymentResponse.invoiceUrl && (
               <div>
-                <p className="font-bold mb-2">Fatura do Cartão:</p>
+                <FormLabel>Pagar Fatura</FormLabel>
                 <a href={paymentResponse.invoiceUrl} target="_blank" rel="noopener noreferrer">
                   <Button className='w-full'>Pagar com Cartão de Crédito</Button>
                 </a>
@@ -250,7 +279,7 @@ export default function PaymentPage() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>Email (Opcional)</FormLabel>
                 <FormControl>
                   <Input placeholder="cliente@email.com" {...field} />
                 </FormControl>
@@ -263,7 +292,7 @@ export default function PaymentPage() {
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Telefone</FormLabel>
+                <FormLabel>Telefone (Opcional)</FormLabel>
                 <FormControl>
                   <Input placeholder="(99) 99999-9999" {...field} />
                 </FormControl>
@@ -271,7 +300,7 @@ export default function PaymentPage() {
               </FormItem>
             )}
           />
-          <hr className="my-4"/>
+          <hr className="my-2"/>
           <FormField
             control={form.control}
             name="billingType"
@@ -378,7 +407,7 @@ export default function PaymentPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-gray-50 dark:bg-gray-900">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>Plano {userPlan === 'free' ? 'Free' : 'Pro'}</CardTitle>
