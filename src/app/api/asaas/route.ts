@@ -10,12 +10,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { name, cpfCnpj, email, phone } = await request.json();
+    const body = await request.json();
+    const { name, cpfCnpj, email, phone, billingType, value, dueDate, description } = body;
 
+    // Etapa 1: Criar o Cliente
     const customerData: any = { name, cpfCnpj };
     if (email) customerData.email = email;
     if (phone) customerData.mobilePhone = phone;
-
 
     const customerResponse = await fetch('https://api-sandbox.asaas.com/v3/customers', {
       method: 'POST',
@@ -26,14 +27,40 @@ export async function POST(request: Request) {
       body: JSON.stringify(customerData),
     });
 
-    const responseData = await customerResponse.json();
+    const customerResult = await customerResponse.json();
 
     if (!customerResponse.ok) {
-        const errorMessage = responseData.errors?.[0]?.description || 'Verifique os dados informados ou a chave de API.';
-        return NextResponse.json({ error: errorMessage }, { status: customerResponse.status });
+        const errorMessage = customerResult.errors?.[0]?.description || 'Verifique os dados do cliente ou a chave de API.';
+        return NextResponse.json({ error: `Erro ao criar cliente: ${errorMessage}` }, { status: customerResponse.status });
     }
 
-    return NextResponse.json(responseData, { status: 200 });
+    // Etapa 2: Criar a Cobrança
+    const paymentData = {
+      customer: customerResult.id,
+      billingType,
+      value,
+      dueDate,
+      description,
+      externalReference: `PEDIDO-${Date.now()}`
+    };
+
+    const paymentResponse = await fetch('https://api-sandbox.asaas.com/v3/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'access_token': apiKey,
+        },
+        body: JSON.stringify(paymentData),
+    });
+    
+    const paymentResult = await paymentResponse.json();
+
+    if (!paymentResponse.ok) {
+        const errorMessage = paymentResult.errors?.[0]?.description || 'Verifique os dados da cobrança.';
+        return NextResponse.json({ error: `Erro ao criar cobrança: ${errorMessage}` }, { status: paymentResponse.status });
+    }
+
+    return NextResponse.json(paymentResult, { status: 200 });
 
   } catch (error: any) {
     console.error('Falha na API interna:', error);
