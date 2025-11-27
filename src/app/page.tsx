@@ -72,6 +72,10 @@ export default function PaymentPage() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: '',
+      cpfCnpj: '',
+      email: '',
+      phone: '',
       value: 5,
       description: 'Acesso ao Plano Pro',
       dueDate: new Date(),
@@ -125,6 +129,18 @@ export default function PaymentPage() {
     setError(null);
     setPaymentResponse(null);
 
+    // Se for Cartão de Crédito, redireciona para o link de pagamento fixo
+    if (data.billingType === 'CREDIT_CARD') {
+        window.open('https://sandbox.asaas.com/c/339x2iwzo849irrx', '_blank');
+        setStatus('idle'); // Reseta o status do botão
+        
+        // Também vamos setar uma referência para checagem, caso o webhook funcione para links de pagamento
+        const externalReference = `PRO-SUB-${Date.now()}`;
+        setPaymentRef(externalReference); // Assumindo que o webhook vai ter a info do cliente
+        return; 
+    }
+    
+    // Lógica para PIX e Boleto continua a mesma
     const externalReference = `PRO-SUB-${Date.now()}`;
     
     const formattedData = {
@@ -151,6 +167,7 @@ export default function PaymentPage() {
       setPaymentResponse(result);
       setStatus('success');
       
+      // A checagem de status via polling só é necessária para PIX e Boleto agora.
       if (result.billingType !== 'CREDIT_CARD') {
          setPaymentRef(externalReference);
       } else {
@@ -172,7 +189,6 @@ export default function PaymentPage() {
   };
 
   const resetForm = () => {
-    // Recarrega a página para resetar o estado para testes
     window.location.reload();
   }
 
@@ -338,7 +354,7 @@ export default function PaymentPage() {
         {status === 'loading' ? (
             <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Gerando Cobrança...
+            Processando...
             </>
         )
         : (
@@ -392,6 +408,7 @@ export default function PaymentPage() {
             </div>
             </div>
         )}
+        {/* Este bloco não será mais usado com a nova lógica, mas mantemos para consistência */}
         {paymentResponse.billingType === 'CREDIT_CARD' && paymentResponse.invoiceUrl && (
             <div className='space-y-4'>
                 <p className="text-sm text-muted-foreground">Clique no botão abaixo para ser redirecionado para a página de pagamento segura e finalizar sua compra com cartão de crédito.</p>
@@ -437,3 +454,5 @@ export default function PaymentPage() {
     </main>
   );
 }
+
+    
