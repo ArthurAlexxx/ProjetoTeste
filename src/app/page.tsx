@@ -50,7 +50,7 @@ const formSchema = z.object({
   billingType: z.enum(['BOLETO', 'CREDIT_CARD', 'PIX'], {
     required_error: 'A forma de pagamento é obrigatória.',
   }),
-  value: z.coerce.number().positive({ message: 'O valor deve ser positivo.' }),
+  value: z.coerce.number().min(5, { message: 'O valor deve ser no mínimo R$5,00.' }),
   dueDate: z.date({
     required_error: 'A data de vencimento é obrigatória.',
   }),
@@ -120,7 +120,7 @@ export default function PaymentPage() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      value: 1, // Valor padrão de R$1 para o plano Pro
+      value: 5, // Valor padrão de R$5 para o plano Pro
       description: 'Acesso ao Plano Pro',
     }
   });
@@ -237,7 +237,7 @@ export default function PaymentPage() {
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>Plano Free</CardTitle>
-          <CardDescription>Faça o upgrade para o Plano Pro por apenas R$1,00 para ter acesso a funcionalidades exclusivas.</CardDescription>
+          <CardDescription>Faça o upgrade para o Plano Pro por apenas R$5,00 para ter acesso a funcionalidades exclusivas.</CardDescription>
         </CardHeader>
         <CardContent>
           {status !== 'success' ? (
@@ -398,7 +398,7 @@ export default function PaymentPage() {
                     </>
                   )
                   : (
-                    'Virar Pro (R$1,00)'
+                    'Virar Pro (R$5,00)'
                   )}
                 </Button>
               </form>
