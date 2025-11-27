@@ -28,6 +28,8 @@ import { Loader2, Terminal } from 'lucide-react';
 const formSchema = z.object({
   name: z.string().min(2, { message: 'O nome é obrigatório.' }),
   cpfCnpj: z.string().min(11, { message: 'O CPF/CNPJ é obrigatório.' }),
+  email: z.string().email({ message: 'Email inválido.' }).optional().or(z.literal('')),
+  phone: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -42,6 +44,8 @@ export default function CustomerPage() {
     defaultValues: {
       name: '',
       cpfCnpj: '',
+      email: '',
+      phone: '',
     },
   });
 
@@ -110,6 +114,32 @@ export default function CustomerPage() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="ex: cliente@email.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefone (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="(99) 99999-9999" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <Button type="submit" disabled={status === 'loading'} className="w-full">
                   {status === 'loading' ? (
@@ -131,6 +161,8 @@ export default function CustomerPage() {
                     <p><strong>ID:</strong> {customerResponse.id}</p>
                     <p><strong>Nome:</strong> {customerResponse.name}</p>
                     <p><strong>CPF/CNPJ:</strong> {customerResponse.cpfCnpj}</p>
+                    {customerResponse.email && <p><strong>Email:</strong> {customerResponse.email}</p>}
+                    {customerResponse.mobilePhone && <p><strong>Telefone:</strong> {customerResponse.mobilePhone}</p>}
                 </div>
               )}
                <Button onClick={() => { setStatus('idle'); form.reset(); }} className="w-full mt-6">Gerar Novo Cliente</Button>

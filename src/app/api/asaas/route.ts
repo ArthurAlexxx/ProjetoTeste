@@ -10,7 +10,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { name, cpfCnpj } = await request.json();
+    const { name, cpfCnpj, email, phone } = await request.json();
+
+    const customerData: any = { name, cpfCnpj };
+    if (email) customerData.email = email;
+    if (phone) customerData.mobilePhone = phone;
+
 
     const customerResponse = await fetch('https://api-sandbox.asaas.com/v3/customers', {
       method: 'POST',
@@ -18,7 +23,7 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
         'access_token': apiKey,
       },
-      body: JSON.stringify({ name, cpfCnpj }),
+      body: JSON.stringify(customerData),
     });
 
     const responseData = await customerResponse.json();
