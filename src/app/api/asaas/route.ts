@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     if (customerId) {
         paymentData.customer = customerId;
     } else {
-        // Envia os dados do cliente para serem criados junto com o pagamento
+        // Envia os dados do cliente para serem criados junto com o pagamento (para Cartão de Crédito)
         paymentData.customer = { name, cpfCnpj, email, mobilePhone: phone };
     }
 
@@ -72,6 +72,12 @@ export async function POST(request: Request) {
         const errorMessage = paymentResult.errors?.[0]?.description || 'Verifique os dados da cobrança.';
         return NextResponse.json({ error: `Erro ao criar cobrança: ${errorMessage}` }, { status: paymentResponse.status });
     }
+    
+    // Adiciona o nossoNumero (linha digitável) à resposta se for boleto
+    if (paymentResult.billingType === 'BOLETO') {
+        paymentResult.identificationField = paymentResult.nossoNumero;
+    }
+
 
     // Etapa 3: Se for PIX, buscar o QR Code
     if (paymentResult.billingType === 'PIX' && paymentResult.id) {
