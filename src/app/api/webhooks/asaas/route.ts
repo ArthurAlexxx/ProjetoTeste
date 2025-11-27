@@ -4,16 +4,23 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
-const dbPath = path.join(process.cwd(), 'payments.json');
+// Em ambientes serverless como a Vercel, apenas o diretório /tmp é gravável.
+const dbPath = path.join('/tmp', 'payments.json');
 
 async function readPayments() {
     try {
-        await fs.access(dbPath);
+        // Tenta ler o arquivo. Se não existir, o catch trata.
         const data = await fs.readFile(dbPath, 'utf-8');
         return JSON.parse(data);
-    } catch (error) {
-        // Se o arquivo não existe, retorna um objeto vazio.
-        return { paid: [] };
+    } catch (error: any) {
+        // Se o erro for 'ENOENT' (arquivo não encontrado), cria o arquivo e retorna o estado inicial.
+        if (error.code === 'ENOENT') {
+            await writePayments({ paid: [] });
+            return { paid: [] };
+        }
+        // Se for outro erro, lança a exceção.
+        console.error("Erro ao ler payments.json:", error);
+        throw error;
     }
 }
 
@@ -41,7 +48,7 @@ export async function POST(request: Request) {
             if (!db.paid.includes(payment.externalReference)) {
                 db.paid.push(payment.externalReference);
                 await writePayments(db);
-                console.log(`Referência externa ${payment.externalReference} salva.`);
+                console.log(`Referência externa ${payment.externalReference} salva com sucesso em ${dbPath}.`);
             }
         }
     }
