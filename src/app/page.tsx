@@ -233,7 +233,7 @@ export default function PaymentPage() {
 
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-24 bg-gray-50">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>Plano Free</CardTitle>
