@@ -9,7 +9,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { name, cpfCnpj, email, phone, billingType, value, dueDate, description } = body;
+    const { name, cpfCnpj, email, phone, billingType, value, dueDate, description, externalReference } = body;
 
     // Etapa 1: Criar o Cliente
     const customerData: any = { name, cpfCnpj };
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       value,
       dueDate,
       description,
-      externalReference: `PEDIDO-${Date.now()}`
+      externalReference: externalReference || `PEDIDO-${Date.now()}`
     };
 
     const paymentResponse = await fetch('https://api-sandbox.asaas.com/v3/payments', {
