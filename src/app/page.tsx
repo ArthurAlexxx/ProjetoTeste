@@ -22,7 +22,6 @@ import {
   CardFooter,
   CardDescription,
 } from '@/components/ui/card';
-import { createAsaasCustomer } from '@/actions/create-payment';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Terminal } from 'lucide-react';
 
@@ -32,11 +31,10 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
-type CustomerResponse = Awaited<ReturnType<typeof createAsaasCustomer>>;
 
 export default function CustomerPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [customerResponse, setCustomerResponse] = useState<CustomerResponse['customer'] | null>(null);
+  const [customerResponse, setCustomerResponse] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<FormData>({
@@ -52,23 +50,25 @@ export default function CustomerPage() {
     setError(null);
     setCustomerResponse(null);
 
-    const apiKey = process.env.NEXT_PUBLIC_ASAAS_API_KEY;
-
-    if (!apiKey) {
-      setError('A chave de API do Asaas não foi configurada. Verifique a variável NEXT_PUBLIC_ASAAS_API_KEY no seu ambiente.');
-      setStatus('error');
-      return;
-    }
-
     try {
-      const response = await createAsaasCustomer(data, apiKey);
-      if (response.error) {
-        throw new Error(response.error);
+      const response = await fetch('/api/asaas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Ocorreu um erro desconhecido.');
       }
-      setCustomerResponse(response.customer);
+      
+      setCustomerResponse(result);
       setStatus('success');
     } catch (e: any) {
-      setError(e.message || 'Ocorreu um erro desconhecido.');
+      setError(e.message);
       setStatus('error');
     }
   };
