@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  // ATENÇÃO: A chave foi codificada diretamente para fins de teste neste ambiente.
-  const apiKey = '$aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmIxNTk1ZmQ0LWI3ZjUtNDM5My04OGJkLTE4YjI5ZWI2Y2MwMDo6JGFhY2hfYjljNGMxNTQtOTAxYy00ODgwLWI2ODUtOWEyMmViYjE4ZGU3';
+  const apiKey = process.env.ASAAS_API_KEY;
 
   if (!apiKey) {
-    // Esta verificação agora é redundante, mas mantida por segurança.
     return NextResponse.json({ error: 'A chave de API do Asaas não foi configurada no servidor.' }, { status: 500 });
   }
 
